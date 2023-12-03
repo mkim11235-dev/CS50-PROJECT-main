@@ -28,9 +28,31 @@ def home():
         return redirect("/login")
     else:
         return redirect("/feed")
+
 @app.route("/feed", methods=["GET","POST"])
 def feed():
-    return render_template("feed.html")
+    
+    # Query database for pending errands
+    cursor = get_db().cursor()
+    cursor.execute("""
+    SELECT
+    errands.title,
+    users.username,
+    errands.content,
+    CAST((julianday('now') - julianday(errands.time)) AS INTEGER) AS days_difference,
+    CAST(((julianday('now') - julianday(errands.time)) * 24 ) AS INTEGER) % 24 AS hours_difference,
+    CAST(((julianday('now') - julianday(errands.time)) * 24 *60) % 60 AS INTEGER) AS total_minutes_difference
+FROM errands
+JOIN users ON errands.user_id = users.id
+WHERE errands.status = 'pending'
+ORDER BY errands.time DESC""");
+
+
+    rows = cursor.fetchall()
+
+
+    
+    return render_template("feed.html", rows=rows)
 
 @app.route("/login", methods=["POST","GET"])
 def handle_login():
@@ -78,6 +100,7 @@ def register():
 
     if request.method == "POST":
         username = request.form.get("username")
+        email = request.form.get ("email")
         password = request.form.get("password")
         confirmation=request.form.get("confirmation")
 
@@ -98,7 +121,7 @@ def register():
             return render_template("register.html",error="Passwords do not match")
         
         # Insert new user into the database
-        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_password))
+        cursor.execute("INSERT INTO users (username, password, email) VALUES (?, ?,?)", (username, hashed_password, email))
         get_db().commit()
 
         # Now, automatically log in the newly registered user
@@ -122,9 +145,13 @@ def publish():
 
         # Insert new post into the database
         cursor = get_db().cursor()
-        cursor.execute("INSERT INTO errands (user_id, title, content) VALUES (?, ?, ?)",
-                       (session["user_id"], title, content))
+        cursor.execute("INSERT INTO errands (user_id, title, content, time, status) VALUES (?, ?, ?,?,?)",
+                       (session["user_id"], title, content, julianday('now'),'pending'))
         get_db().commit()
         return redirect('/')
     else:
         return render_template("publish.html")
+    
+@app.route('/execute',methods=["POST","GET"])
+def execute():
+    return render_template("execute.html")
