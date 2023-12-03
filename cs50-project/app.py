@@ -25,13 +25,15 @@ app.teardown_appcontext(close_db)
 @app.route("/")
 def home():
     if "user_id" not in session:
-        return render_template("login.html")
+        return redirect("/login")
     else:
-        return render_template('feed.html')
+        return redirect("/feed")
+@app.route("/feed", methods=["GET","POST"])
+def feed():
+    return render_template("feed.html")
 
 @app.route("/login", methods=["POST","GET"])
 def handle_login():
-    session.clear()
 
     if request.method == "POST":
         username = request.form.get("username")
@@ -53,6 +55,10 @@ def handle_login():
 
         # Remember which user has logged in
         session["user_id"] = user[0]
+        
+        print("user:", user)
+        print("Logged in user_id:", session["user_id"])
+
 
         # Redirect user to home page
         return redirect("/")
