@@ -1,40 +1,35 @@
-from flask import Flask, flash, render_template, redirect, request, session
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, g, render_template, redirect, request, session
 import secrets
+import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
-from database import db
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # To suppress a warning
 app.config['SECRET_KEY'] = secrets.token_hex(32)
 
-db.init_app(app)
+# Function to get a database connection
+def get_db():
+    db = getattr(g, '_database', None)
+    if db is None:
+        db = g._database = sqlite3.connect('database.db')
+    return db
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(128), nullable=False)
+# Function to close the database connection
+def close_db(e=None):
+    db = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
 
-    def __repr__(self):
-        return f'<User {self.username}>'
-
-class Errand(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    users_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    title = db.Column(db.String(255), nullable=False)
-    content = db.Column(db.Text, nullable=False)
-    user = db.relationship('User', backref='errands', lazy=True)
+# Register the close_db function to be called when the application context ends
+app.teardown_appcontext(close_db)
 
 @app.route("/")
 def home():
-    if session.get("user_id") is None:
+    if "user_id" not in session:
         return render_template("login.html")
     else:
         return render_template('feed.html')
 
-
-@app.route("/login", methods=["POST"])
+@app.route("/login", methods=["POST","GET"])
 def handle_login():
     session.clear()
 
@@ -43,16 +38,25 @@ def handle_login():
         password = request.form.get("password")
 
         if not username or not password:
-            return "Must provide username and/or password", 403
+            
+            return render_template("login.html", error="Must provide username and/or password"), 403
 
-        user = User.query.filter_by(username=username).first()
+        # Query database for username
+        cursor = get_db().cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        user = cursor.fetchone()
 
-        if not user or not check_password_hash(user.password, password):
-            return "Invalid username and/or password", 403
+        # Ensure username exists and password is correct
+        if not user or not check_password_hash(user[2], password): 
+            
+            return render_template("login.html", error="Invalid username and/or password"), 403
 
-        session["user_id"] = user.id
+        # Remember which user has logged in
+        session["user_id"] = user[0]
 
+        # Redirect user to home page
         return redirect("/")
+
     else:
         return render_template("login.html")
 
@@ -62,28 +66,45 @@ def logout():
     session.clear()
     return redirect("/")
 
-@app.route("/register", methods=["POST"])
+@app.route("/register", methods=["POST","GET"])
 def register():
     session.clear()
 
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
+        confirmation=request.form.get("confirmation")
 
         if not username or not password:
+            
             return render_template("register.html", error="Must provide username and/or password"), 400
 
         hashed_password = generate_password_hash(password)
-        new_user = User(username=username, password=hashed_password)
 
-        try:
-            db.session.add(new_user)
-            db.session.commit()
-            session["user_id"] = new_user.id
-            return redirect("/")
-        except:
-            db.session.rollback()
+        # Check if username already exists
+        cursor = get_db().cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        existing_user = cursor.fetchone()
+        if existing_user:
+            
             return render_template("register.html", error="Username already exists"), 400
+        if confirmation != password:
+            return render_template("register.html",error="Passwords do not match")
+        
+        # Insert new user into the database
+        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_password))
+        get_db().commit()
+
+        # Now, automatically log in the newly registered user
+        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        new_user = cursor.fetchone()
+
+        # Set the session information for the logged-in user
+        session["user_id"] = new_user[0]
+
+        # Redirect to the home page or any other destination after registration
+        return redirect('/')
+
     else:
         return render_template("register.html")
 
@@ -93,20 +114,11 @@ def publish():
         title = request.form.get("title")
         content = request.form.get("content")
 
-        new_errand = Errand(users_id=session["user_id"], title=title, content=content)
-
-        try:
-            db.session.add(new_errand)
-            db.session.commit()
-            return redirect("/")
-        except:
-            db.session.rollback()
-            return "Error while publishing", 500
-
+        # Insert new post into the database
+        cursor = get_db().cursor()
+        cursor.execute("INSERT INTO errands (user_id, title, content) VALUES (?, ?, ?)",
+                       (session["user_id"], title, content))
+        get_db().commit()
+        return redirect('/')
     else:
-        requests = Errand.query.all()
-        return render_template("publish.html", requests=requests)
-        
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
+        return render_template("publish.html")
