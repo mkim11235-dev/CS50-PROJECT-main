@@ -35,23 +35,18 @@ def feed():
     # Query database for pending errands
     cursor = get_db().cursor()
     cursor.execute("""
-    SELECT
-    errands.title,
-    users.username,
-    errands.content,
-    CAST((julianday('now') - julianday(errands.time)) AS INTEGER) AS days_difference,
-    CAST(((julianday('now') - julianday(errands.time)) * 24 ) AS INTEGER) % 24 AS hours_difference,
-    CAST(((julianday('now') - julianday(errands.time)) * 24 *60) % 60 AS INTEGER) AS total_minutes_difference
-FROM errands
-JOIN users ON errands.user_id = users.id
-WHERE errands.status = 'pending'
-ORDER BY errands.time DESC""");
-
-
+        SELECT
+        errands.title,
+        users.username,
+        errands.content,
+        CAST((julianday('now') - julianday(errands.time)) AS INTEGER) AS days_difference,
+        CAST(((julianday('now') - julianday(errands.time)) * 24 ) AS INTEGER) % 24 AS hours_difference,
+        CAST(((julianday('now') - julianday(errands.time)) * 24 *60) % 60 AS INTEGER) AS total_minutes_difference
+    FROM errands
+    JOIN users ON errands.user_id = users.id
+    WHERE errands.status = 'pending'
+    ORDER BY errands.time DESC""");
     rows = cursor.fetchall()
-
-
-    
     return render_template("feed.html", rows=rows)
 
 @app.route("/login", methods=["POST","GET"])
@@ -78,10 +73,6 @@ def handle_login():
         # Remember which user has logged in
         session["user_id"] = user[0]
         
-        print("user:", user)
-        print("Logged in user_id:", session["user_id"])
-
-
         # Redirect user to home page
         return redirect("/")
 
@@ -121,7 +112,7 @@ def register():
             return render_template("register.html",error="Passwords do not match")
         
         # Insert new user into the database
-        cursor.execute("INSERT INTO users (username, password, email) VALUES (?, ?,?)", (username, hashed_password, email))
+        cursor.execute("INSERT INTO users (username, password, email, points) VALUES (?, ?,?,?)", (username, hashed_password, email, 20))
         get_db().commit()
 
         # Now, automatically log in the newly registered user
@@ -137,9 +128,11 @@ def register():
     else:
         return render_template("register.html")
 
-@app.route('/publish', methods=["POST", "GET"])
+@app.route("/publish", methods=["POST", "GET"])
 def publish():
-    if request.method == "POST":
+    return render_template('publish.html')
+
+    """if request.method == "POST":
         title = request.form.get("title")
         content = request.form.get("content")
 
@@ -148,10 +141,65 @@ def publish():
         cursor.execute("INSERT INTO errands (user_id, title, content, time, status) VALUES (?, ?, ?,?,?)",
                        (session["user_id"], title, content, julianday('now'),'pending'))
         get_db().commit()
-        return redirect('/')
+        return redirect('/publish')
     else:
-        return render_template("publish.html")
+        return render_template("publish.html")"""
+    
+
     
 @app.route('/execute',methods=["POST","GET"])
 def execute():
     return render_template("execute.html")
+
+@app.route('/profile')
+def profile():
+    cursor = get_db().cursor()
+    cursor.execute("""
+        SELECT
+        errands.title,
+        users.username,
+        errands.content,
+        CAST((julianday('now') - julianday(errands.time)) AS INTEGER) AS days_difference,
+        CAST(((julianday('now') - julianday(errands.time)) * 24 ) AS INTEGER) % 24 AS hours_difference,
+        CAST(((julianday('now') - julianday(errands.time)) * 24 *60) % 60 AS INTEGER) AS total_minutes_difference,
+        errands.status,
+        errands.id
+    FROM errands
+    JOIN users ON errands.user_id = users.id
+    WHERE users.id = ?
+    ORDER BY errands.time DESC""", (session['user_id'],))
+    rows = cursor.fetchall()
+    cursor.close()
+    
+    cursor=get_db().cursor()
+    cursor.execute("SELECT username , points FROM users WHERE id=?",(session['user_id'],))
+    user=cursor.fetchall()
+    return render_template('profile.html', rows=rows, user=user)
+
+@app.route('/delete', methods=['POST'])
+def delete():
+    id = request.form.get('id')
+
+    if id:
+        cursor = get_db().cursor()
+        cursor.execute("DELETE FROM errands WHERE id=?",(id,))
+        get_db().commit()
+        cursor.close()
+    return redirect('/profile')
+
+@app.route('/profile_picture', methods=['POST'])
+def profile_picture():
+    if 'profile_picture' in request.files:
+        profile_picture = request.files['profile_picture']
+
+        # Specify the folder where you want to save the uploaded files
+        upload_folder = 'profile_pics/'
+        profile_picture.save(os.path.join(upload_folder, 'profile_picture.jpg'))
+
+        # You can also update the user's profile in the database if needed
+
+        return 'Profile picture uploaded successfully'
+
+    return 'No profile picture uploaded'
+
+    
