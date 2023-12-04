@@ -130,9 +130,8 @@ def register():
 
 @app.route("/publish", methods=["POST", "GET"])
 def publish():
-    return render_template('publish.html')
-
-    """if request.method == "POST":
+    
+    if request.method == "POST":
         title = request.form.get("title")
         content = request.form.get("content")
 
@@ -143,7 +142,7 @@ def publish():
         get_db().commit()
         return redirect('/publish')
     else:
-        return render_template("publish.html")"""
+        return render_template("publish.html")
     
 
     
