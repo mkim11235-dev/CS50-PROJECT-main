@@ -4,47 +4,25 @@
 Publish
 {% endblock %}
 
-<html lang="en">
+{% block main %}
+<div class="container mt-5">
+    <h1>This is Publish</h1>
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="initial-scale=1, width=device-width">
+    <div class="section">
+        <h2>Publish a Request</h2>
 
-    <!-- Bootstrap CSS -->
-    <link crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-        integrity="sha384-btjmmU3GS+Rq68jU7qN2a6gipCBi8kZVLfMXFYlXu2ZZFiIYSoDaXQWjJX4TFFmy" rel="stylesheet">
-
-    <!-- Bootstrap JS -->
-    <script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-pzjw8l+U7H62Y8R+e+bUN9kVVxD9fqAWTcBgcjFb9L7th5a/zMBS6aF9TI2f6Fkv"></script>
-
-    <!-- Favicon -->
-    <link href="/static/favicon.ico" rel="icon">
-
-    <title>Runnify: {% block title %}{% endblock %}</title>
-</head>
-
-<body>
-    <div class="container mt-5">
-        <h1>This is Publish</h1>
-
-        <div class="section">
-            <h2>Publish a Request</h2>
-            <!-- Form to publish a request -->
-            <form action="/publish" method="post">
-                <div class="mb-3">
-                    <label for="title" class="form-label">Title</label>
-                    <input name="title" class="form-control" type="text" required>
-                </div>
-                <div class="mb-3">
-                    <label for="content" class="form-label">Describe your errand</label>
-                    <input name="content" class="form-control" type="text" required>
-                </div>
-                <button class="btn btn-primary" type="submit">Publish</button>
-            </form>
-        </div>
+        <form action="/publish" method="post">
+            <div class="mb-3">
+                <label for="title" class="form-label">Title</label>
+                <input name="title" class="form-control" type="text" required>
+            </div>
+            <div class="mb-3">
+                <label for="content" class="form-label">Describe your errand</label>
+                <input name="content" class="form-control" type="text" required>
+            </div>
+            <button class="btn btn-primary" type="submit">Publish</button>
+        </form>
     </div>
-</body>
+</div>
 
-</html>
 {% endblock %}
