@@ -9,6 +9,9 @@ import sqlite3
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
+from werkzeug.utils import secure_filename
+
+
 
 class ForgotPasswordForm(FlaskForm):
     email = StringField('Email', validators=[InputRequired(), Email()])
@@ -44,6 +47,11 @@ def close_db(e=None):
 
 # Register the close_db function to be called when the application context ends
 app.teardown_appcontext(close_db)
+
+def julianday():
+    current_datetime = datetime.now()
+    formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+    return formatted_datetime
 
 @app.route("/")
 def home():
@@ -202,7 +210,6 @@ def reset_password(token):
 
 @app.route("/publish", methods=["POST", "GET"])
 def publish():
-    
     if request.method == "POST":
         title = request.form.get("title")
         content = request.form.get("content")
@@ -210,9 +217,9 @@ def publish():
         # Insert new post into the database
         cursor = get_db().cursor()
         cursor.execute("INSERT INTO errands (user_id, title, content, time, status) VALUES (?, ?, ?,?,?)",
-                       (session["user_id"], title, content, julianday('now'),'pending'))
+                       (session["user_id"], title, content, julianday(), 'pending'))
         get_db().commit()
-        return redirect('/publish')
+        return redirect('/feed')
     else:
         return render_template("publish.html")
     
@@ -234,7 +241,7 @@ def profile():
         CAST(((julianday('now') - julianday(errands.time)) * 24 ) AS INTEGER) % 24 AS hours_difference,
         CAST(((julianday('now') - julianday(errands.time)) * 24 *60) % 60 AS INTEGER) AS total_minutes_difference,
         errands.status,
-        errands.id
+        errands.id               
     FROM errands
     JOIN users ON errands.user_id = users.id
     WHERE users.id = ?
@@ -243,8 +250,9 @@ def profile():
     cursor.close()
     
     cursor=get_db().cursor()
-    cursor.execute("SELECT username , points FROM users WHERE id=?",(session['user_id'],))
-    user=cursor.fetchall()
+    cursor.execute("SELECT username , points, profile_picture_filename FROM users WHERE id=?",(session['user_id'],))
+    user=cursor.fetchone()
+
     return render_template('profile.html', rows=rows, user=user)
 
 @app.route('/delete', methods=['POST'])
@@ -265,12 +273,20 @@ def profile_picture():
 
         # Specify the folder where you want to save the uploaded files
         upload_folder = 'profile_pics/'
-        profile_picture.save(os.path.join(upload_folder, 'profile_picture.jpg'))
+        filename = secure_filename(profile_picture.filename)
+        profile_picture_path = os.path.join(upload_folder, filename)
+        profile_picture.save(profile_picture_path)
 
-        # You can also update the user's profile in the database if needed
+        # Update the user's profile picture in the database
+        cursor = get_db().cursor()
+        cursor.execute("UPDATE users SET profile_picture_filename = ? WHERE id = ?", (filename, session['user_id']))
+        get_db().commit()
 
-        return 'Profile picture uploaded successfully'
+
+        return redirect('/profile')
 
     return 'No profile picture uploaded'
+
+
 
     

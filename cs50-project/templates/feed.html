@@ -7,18 +7,16 @@ Feed
 {% block main %}
 
 <body>
-    {% for row in rows %}
-    <div class="card" style="width: 48rem">
-        <div class="border border-left border-right px-0">
-
-            <div>
+    <div class="container mx-auto mw-60">
+        {% for row in rows %}
+        <div class="card mb-3">
+            <div class="border border-left border-right px-0">
                 <div class="card shadow-0">
                     <div class="d-flex p-3 border-bottom">
                         <img src="static/logo.jpg" class="rounded-circle" height="50" alt="Runnify Logo"
                             loading="lazy" />
                         <div class="d-flex w-100 ps-3">
                             <div class="flex-grow-1">
-
                                 <h6 class="text-body">
                                     {{row[0]}}
                                     <span class="small text-muted font-weight-normal">@{{row[1]}}</span>
@@ -26,8 +24,7 @@ Feed
                                     <span class="small text-muted font-weight-normal">
                                         {% if row[3] > 0 %}{{ row[3] }}d{% endif %}
                                         {% if row[4] > 0 %}{{ row[4] }}h{% endif %}
-                                        {{row[5]}}min
-                                        ago
+                                        {{row[5]}}min ago
                                     </span>
                                     <span><i class="fas fa-angle-down float-end"></i></span>
                                 </h6>
@@ -40,11 +37,10 @@ Feed
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>
+        {% endfor %}
     </div>
-    {% endfor %}
 </body>
 {% endblock %}
