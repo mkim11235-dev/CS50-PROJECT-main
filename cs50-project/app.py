@@ -2,6 +2,7 @@ import os
 from flask import Flask, flash, g, render_template, redirect, request, session
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_wtf import FlaskForm
+from nbconvert import export
 from wtforms import StringField, PasswordField
 from wtforms.validators import InputRequired, Email, EqualTo
 import secrets
@@ -24,7 +25,7 @@ app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = 'runnify50@gmail.com'
-app.config['MAIL_PASSWORD'] = 'ergtfb3c4tvb587tb)()T*&FG24rtcoi4nt3i'
+app.config['MAIL_PASSWORD'] = 'zayu yecx ldjp sjnw'
 app.config['MAIL_DEFAULT_SENDER'] = 'runnify50@gmail.com'
 
 mail = Mail(app)
@@ -44,6 +45,16 @@ def close_db(e=None):
 
 # Register the close_db function to be called when the application context ends
 app.teardown_appcontext(close_db)
+
+@app.route('/test_email')
+def test_email():
+    try:
+        msg = Message('Test Email', recipients=['your_test_email@example.com'])
+        msg.body = 'This is a test email from Flask.'
+        mail.send(msg)
+        return 'Email sent successfully!'
+    except Exception as e:
+        return 'Failed to send email: ' + str(e)
 
 @app.route("/")
 def home():
@@ -114,9 +125,9 @@ def register():
 
     if request.method == "POST":
         username = request.form.get("username")
-        email = request.form.get ("email")
+        email = request.form.get("email").lower()  # Convert email to lower case
         password = request.form.get("password")
-        confirmation=request.form.get("confirmation")
+        confirmation = request.form.get("confirmation")
 
         if not username or not password:
             
@@ -156,7 +167,7 @@ def register():
 def forgot_password():
     form = ForgotPasswordForm()
     if form.validate_on_submit():
-        email = form.email.data
+        email = form.email.data.lower()  # Convert email to lower case
         db = get_db()
         cursor = db.cursor()
         cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
@@ -166,15 +177,16 @@ def forgot_password():
             expiry = datetime.now() + timedelta(hours=1)  # Token expires in 1 hour
             cursor.execute("UPDATE users SET reset_token = ?, token_expiry = ? WHERE id = ?", (token, expiry, user[0]))
             db.commit()
+            reset_url = url_for('reset_password', token=token, _external=True)
 
-            msg = Message('Password Reset Request', sender='your_email', recipients=[email])
+            msg = Message('Password Reset Request', sender='runnify50@gmail.com', recipients=[email])
             msg.body = f'''To reset your password, visit the following link:
 {url_for('reset_password', token=token, _external=True)}
 If you did not make this request, simply ignore this email and no changes will be made.
 '''
             mail.send(msg)
             flash('An email has been sent with instructions to reset your password.')
-            return redirect(url_for('login'))
+            return redirect(url_for('handle_login'))
         else:
             flash('No account with that email. Please try again.')
     return render_template('forgot_password.html', form=form)
@@ -193,7 +205,7 @@ def reset_password(token):
             cursor.execute("UPDATE users SET password = ?, reset_token = NULL, token_expiry = NULL WHERE id = ?", (new_password, user[0]))
             db.commit()
             flash('Your password has been updated.')
-            return redirect(url_for('login'))
+            return redirect(url_for('handle_login'))
         else:
             flash('This reset token is invalid or has expired.')
             return redirect(url_for('forgot_password'))
@@ -216,7 +228,6 @@ def publish():
     else:
         return render_template("publish.html")
     
-
     
 @app.route('/execute',methods=["POST","GET"])
 def execute():
