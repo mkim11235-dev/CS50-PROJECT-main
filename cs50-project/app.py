@@ -1,10 +1,28 @@
 from flask import Flask, g, render_template, redirect, request, session
+from flask import Flask, render_template, request, redirect, url_for, session
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField
+from wtforms.validators import InputRequired, Email, EqualTo
 import secrets
 import sqlite3
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_mail import Mail, Message
+
+class ForgotPasswordForm(FlaskForm):
+    email = StringField('Email', validators=[InputRequired(), Email()])
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_hex(32)
+
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'runnify50@gmail.com'
+app.config['MAIL_PASSWORD'] = 'ergtfb3c4tvb587tb)()T*&FG24rtcoi4nt3i'
+app.config['MAIL_DEFAULT_SENDER'] = 'runnify50@gmail.com'
+
+mail = Mail(app)
 
 # Function to get a database connection
 def get_db():
@@ -127,6 +145,45 @@ def register():
 
     else:
         return render_template("register.html")
+    
+
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        cursor = get_db().cursor()
+        cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+        user = cursor.fetchone()
+
+        if user:
+            password_reset_token = secrets.token_hex(16)
+            cursor.execute("UPDATE users SET password_reset_token = ? WHERE id = ?", (password_reset_token, user[0]))
+            get_db().commit()
+
+            reset_url = url_for('reset_password', token=password_reset_token, _external=True)
+            msg = Message("Password Reset Request", recipients=[email])
+            msg.body = f"To reset your password, visit the following link: {reset_url}"
+            mail.send(msg)
+
+        return render_template('forgot_password.html', message="If an account with that email was found, we've sent a reset link to it.")
+
+    return render_template('forgot_password.html')
+
+
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    if request.method == 'POST':
+        new_password = request.form.get('password')
+        hashed_new_password = generate_password_hash(new_password)
+
+        cursor = get_db().cursor()
+        cursor.execute("UPDATE users SET password = ?, password_reset_token = NULL WHERE password_reset_token = ?", (hashed_new_password, token))
+        get_db().commit()
+
+        return redirect(url_for('login'))
+
+    return render_template('reset_password.html', token=token)
+
 
 @app.route("/publish", methods=["POST", "GET"])
 def publish():
