@@ -251,7 +251,7 @@ def profile():
     
     cursor=get_db().cursor()
     cursor.execute("SELECT username , points, profile_picture_filename FROM users WHERE id=?",(session['user_id'],))
-    user=cursor.fetchone()
+    user=cursor.fetchall()
 
     return render_template('profile.html', rows=rows, user=user)
 
