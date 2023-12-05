@@ -209,8 +209,8 @@ def publish():
 
         # Insert new post into the database
         cursor = get_db().cursor()
-        cursor.execute("INSERT INTO errands (user_id, title, content, time, status) VALUES (?, ?, ?,?,?)",
-                       (session["user_id"], title, content, julianday('now'),'pending'))
+        '''cursor.execute("INSERT INTO errands (user_id, title, content, time, status) VALUES (?, ?, ?,?,?)",
+                       (session["user_id"], title, content, julianday('now'),'pending'))'''
         get_db().commit()
         return redirect('/publish')
     else:
