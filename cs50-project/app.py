@@ -1,4 +1,5 @@
-from flask import Flask, g, render_template, redirect, request, session
+import os
+from flask import Flask, flash, g, render_template, redirect, request, session
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField
@@ -11,6 +12,10 @@ from flask_mail import Mail, Message
 
 class ForgotPasswordForm(FlaskForm):
     email = StringField('Email', validators=[InputRequired(), Email()])
+
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField('New Password', validators=[InputRequired()])
+    confirm = PasswordField('Repeat Password', validators=[InputRequired(), EqualTo('password')])
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_hex(32)
@@ -149,40 +154,50 @@ def register():
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        cursor = get_db().cursor()
-        cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+    form = ForgotPasswordForm()
+    if form.validate_on_submit():
+        email = form.email.data
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
         user = cursor.fetchone()
-
         if user:
-            password_reset_token = secrets.token_hex(16)
-            cursor.execute("UPDATE users SET password_reset_token = ? WHERE id = ?", (password_reset_token, user[0]))
-            get_db().commit()
+            token = secrets.token_hex(16)
+            expiry = datetime.now() + timedelta(hours=1)  # Token expires in 1 hour
+            cursor.execute("UPDATE users SET reset_token = ?, token_expiry = ? WHERE id = ?", (token, expiry, user[0]))
+            db.commit()
 
-            reset_url = url_for('reset_password', token=password_reset_token, _external=True)
-            msg = Message("Password Reset Request", recipients=[email])
-            msg.body = f"To reset your password, visit the following link: {reset_url}"
+            msg = Message('Password Reset Request', sender='your_email', recipients=[email])
+            msg.body = f'''To reset your password, visit the following link:
+{url_for('reset_password', token=token, _external=True)}
+If you did not make this request, simply ignore this email and no changes will be made.
+'''
             mail.send(msg)
-
-        return render_template('forgot_password.html', message="If an account with that email was found, we've sent a reset link to it.")
-
-    return render_template('forgot_password.html')
+            flash('An email has been sent with instructions to reset your password.')
+            return redirect(url_for('login'))
+        else:
+            flash('No account with that email. Please try again.')
+    return render_template('forgot_password.html', form=form)
 
 
 @app.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
-    if request.method == 'POST':
-        new_password = request.form.get('password')
-        hashed_new_password = generate_password_hash(new_password)
-
-        cursor = get_db().cursor()
-        cursor.execute("UPDATE users SET password = ?, password_reset_token = NULL WHERE password_reset_token = ?", (hashed_new_password, token))
-        get_db().commit()
-
-        return redirect(url_for('login'))
-
-    return render_template('reset_password.html', token=token)
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT id FROM users WHERE reset_token = ? AND token_expiry > ?", (token, datetime.now()))
+        user = cursor.fetchone()
+        if user:
+            new_password = generate_password_hash(form.password.data)
+            cursor.execute("UPDATE users SET password = ?, reset_token = NULL, token_expiry = NULL WHERE id = ?", (new_password, user[0]))
+            db.commit()
+            flash('Your password has been updated.')
+            return redirect(url_for('login'))
+        else:
+            flash('This reset token is invalid or has expired.')
+            return redirect(url_for('forgot_password'))
+    return render_template('reset_password.html', form=form, token=token)
 
 
 @app.route("/publish", methods=["POST", "GET"])
