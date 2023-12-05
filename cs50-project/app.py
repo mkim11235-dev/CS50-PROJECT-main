@@ -1,10 +1,33 @@
-from flask import Flask, g, render_template, redirect, request, session
+import os
+from flask import Flask, flash, g, render_template, redirect, request, session
+from flask import Flask, render_template, request, redirect, url_for, session
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField
+from wtforms.validators import InputRequired, Email, EqualTo
 import secrets
 import sqlite3
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_mail import Mail, Message
+
+class ForgotPasswordForm(FlaskForm):
+    email = StringField('Email', validators=[InputRequired(), Email()])
+
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField('New Password', validators=[InputRequired()])
+    confirm = PasswordField('Repeat Password', validators=[InputRequired(), EqualTo('password')])
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_hex(32)
+
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'runnify50@gmail.com'
+app.config['MAIL_PASSWORD'] = 'ergtfb3c4tvb587tb)()T*&FG24rtcoi4nt3i'
+app.config['MAIL_DEFAULT_SENDER'] = 'runnify50@gmail.com'
+
+mail = Mail(app)
 
 # Function to get a database connection
 def get_db():
@@ -127,6 +150,55 @@ def register():
 
     else:
         return render_template("register.html")
+    
+
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    form = ForgotPasswordForm()
+    if form.validate_on_submit():
+        email = form.email.data
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
+        user = cursor.fetchone()
+        if user:
+            token = secrets.token_hex(16)
+            expiry = datetime.now() + timedelta(hours=1)  # Token expires in 1 hour
+            cursor.execute("UPDATE users SET reset_token = ?, token_expiry = ? WHERE id = ?", (token, expiry, user[0]))
+            db.commit()
+
+            msg = Message('Password Reset Request', sender='your_email', recipients=[email])
+            msg.body = f'''To reset your password, visit the following link:
+{url_for('reset_password', token=token, _external=True)}
+If you did not make this request, simply ignore this email and no changes will be made.
+'''
+            mail.send(msg)
+            flash('An email has been sent with instructions to reset your password.')
+            return redirect(url_for('login'))
+        else:
+            flash('No account with that email. Please try again.')
+    return render_template('forgot_password.html', form=form)
+
+
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT id FROM users WHERE reset_token = ? AND token_expiry > ?", (token, datetime.now()))
+        user = cursor.fetchone()
+        if user:
+            new_password = generate_password_hash(form.password.data)
+            cursor.execute("UPDATE users SET password = ?, reset_token = NULL, token_expiry = NULL WHERE id = ?", (new_password, user[0]))
+            db.commit()
+            flash('Your password has been updated.')
+            return redirect(url_for('login'))
+        else:
+            flash('This reset token is invalid or has expired.')
+            return redirect(url_for('forgot_password'))
+    return render_template('reset_password.html', form=form, token=token)
+
 
 @app.route("/publish", methods=["POST", "GET"])
 def publish():
