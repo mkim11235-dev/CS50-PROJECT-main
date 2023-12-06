@@ -7,19 +7,72 @@
 {% block main %}
 <div class="container mt-5">
     <h2>{{ errand[1] }}</h2> <!-- Title -->
-    <p>Published by {{ errand[3] }} - {{ errand[4] }} ago</p>
+    <p>Published by {{ errand[3] }} - on {{errand[4]}}</p>
     <p>{{ errand[2] }}</p> <!-- Description -->
 
-    <div id="map" style="height: 400px;"></div>
-
-    <!-- Execute Button -->
-    <div class="text-end mt-3">
-        <a href="{{ url_for('execute_errand', errand_id=errand[0]) }}" class="btn btn-primary">Execute</a>
+    {% if start_time is defined %}
+    <!-- Container for time display -->
+    <div id="remaining-time-container">
+        <p>Remaining Time: <span id="remaining-time"></span></p>
     </div>
 
     <script>
+        window.addEventListener("DOMContentLoaded", function () {
+            var errandId = {{ errand[0]|tojson|safe }};
+            var start_time = {{ start_time|tojson|safe }};
+            var errandDuration = {{ errand[8] }};
+            var remainingTimeContainer = document.getElementById("remaining-time-container");
+            var remainingTimeElement = document.getElementById("remaining-time");
+    
+            // Move the following lines here
+            var executeButton = document.getElementById("execute-btn");
+    
+            executeButton.addEventListener("click", function () {
+                // Calculate the remaining time on the client side
+                var timerId = setInterval(function () {
+                    var current_time = new Date().getTime() / 1000; // Convert milliseconds to seconds
+                    var elapsed_time = current_time - start_time;
+                    var remaining_time = Math.max(0, errandDuration - elapsed_time);
+    
+                    // Show the container for time display
+                    remainingTimeContainer.style.display = "block";
+    
+                    remainingTimeElement.textContent = remaining_time.toFixed(0) + " seconds";
+    
+                    // If the remaining time is zero, stop the timer
+                    if (remaining_time === 0) {
+                        clearInterval(timerId);
+                    }
+                }, 1000);
+            });
+    
+        });
+    </script>
+    
+    
+
+
+    <!-- Executed Button -->
+    <div class="text-end mt-3">
+        <a href="{{ url_for('executed', errand_id=errand[0]) }}" class="btn btn-primary" id="executed-btn">Executed</a>
+    </div>
+    <div class="text-end mt-3">
+        <a href="{{ url_for('opt_out', errand_id=errand[0]) }}" class="btn btn-primary" id="optout-btn">Opt Out</a>
+    </div>
+
+    {% else %}
+    <!-- Execute Button -->
+    <div class="text-end mt-3">
+        <a href="{{ url_for('execute_errand', errand_id=errand[0]) }}" class="btn btn-primary" id="execute-btn">Execute</a>
+    </div>
+    {% endif %}
+
+    <div id="map" style="height: 400px;"></div>
+
+    <script>
         function initMap() {
-            var errandLocation = {lat: {{ errand[6] }}, lng: {{ errand[7] }}};
+            var errandLocation = { lat: {{ errand[6] }}, lng: {{ errand[7] }} };
+    
             var map = new google.maps.Map(document.getElementById('map'), {
                 zoom: 15,
                 center: errandLocation
@@ -31,8 +84,6 @@
         }
     </script>
     <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAChcmJ-2WVKyBH9DpOwH5PcEoFPecNrpE&callback=initMap"></script>
-</div>
-{% endblock %}
-
-
-
+    </div>
+    {% endblock %}
+    

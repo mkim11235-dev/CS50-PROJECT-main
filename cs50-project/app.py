@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
 from werkzeug.utils import secure_filename
+import time
 
 
 
@@ -82,17 +83,17 @@ def feed():
     cursor = get_db().cursor()
     cursor.execute("""
         SELECT
-            errands.id,  -- Include the errand ID
+            errands.id,  
             errands.title,
             users.username,
             errands.content,
-            CAST((julianday('now') - julianday(errands.time)) AS INTEGER) AS days_difference,
-            CAST(((julianday('now') - julianday(errands.time)) * 24) AS INTEGER) % 24 AS hours_difference,
-            CAST(((julianday('now') - julianday(errands.time)) * 24 * 60) % 60 AS INTEGER) AS total_minutes_difference
+            CAST((julianday('now') - julianday(errands.time)) AS INTEGER) AS days,
+            CAST(((julianday('now') - julianday(errands.time)) * 24) AS INTEGER) % 24 AS hours,
+            CAST(((julianday('now') - julianday(errands.time)) * 24 * 60) % 60 AS INTEGER) AS minutes
         FROM errands
         JOIN users ON errands.user_id = users.id
         WHERE errands.status = 'pending'
-        ORDER BY errands.time DESC
+        ORDER BY julianday('now') - julianday(errands.time) ASC
     """)
     rows = cursor.fetchall()
     return render_template("feed.html", rows=rows)
@@ -233,11 +234,12 @@ def publish():
         content = request.form.get("content")
         latitude = request.form.get("latitude")
         longitude = request.form.get("longitude")
+        duration=request.form.get("duration")
 
         # Insert new post into the database
         cursor = get_db().cursor()
-        cursor.execute("INSERT INTO errands (user_id, title, content, time, status, latitude, longitude) VALUES (?, ?, ?, julianday(), 'pending', ?, ?)",
-                       (session["user_id"], title, content, latitude, longitude))
+        cursor.execute("INSERT INTO errands (user_id, title, content, time, status, latitude, longitude, to_do_time) VALUES (?, ?, ?, julianday(), 'pending', ?, ?,?)",
+                       (session["user_id"], title, content, latitude, longitude, duration*60))
         get_db().commit()
         return redirect('/feed')
     else:
@@ -246,8 +248,8 @@ def publish():
     
 
     
-@app.route('/errand/<int:errand_id>')
-def view_errand(errand_id):
+@app.route('/errand_detail/<int:errand_id>')
+def errand_detail(errand_id):
     # Fetch errand details from the database
     cursor = get_db().cursor()
     cursor.execute("""
@@ -266,13 +268,50 @@ def view_errand(errand_id):
         return "Errand not found", 404
     
     
-@app.route('/execute_errand/<int:errand_id>', methods=['GET', 'POST'])
-def execute_errand(errand_id):
-    # Add your logic for executing the errand here
-    # For example, updating the errand status in the database
 
-    # Redirect to an appropriate page after execution
-    return redirect(url_for('feed'))
+@app.route('/execute_errand/<int:errand_id>')
+def execute_errand(errand_id):
+    
+    cursor=get_db().cursor()
+    cursor.execute("""
+        SELECT e.id, e.title, e.content, u.username, e.time, e.status, e.latitude, e.longitude, e.to_do_time
+        FROM errands e
+        JOIN users u ON e.user_id = u.id
+        WHERE e.id = ?
+    """, (errand_id,))
+    errand = cursor.fetchone()
+
+    # Check if the errand is still pending 
+    if errand[5]=='pending':
+        # Update the status of the errand 
+        print("Before updating status")
+        cursor=get_db().cursor()
+        cursor.execute("UPDATE errands SET status='in progress' WHERE id=?", (errand_id,))
+        get_db().commit()
+        print("After updating status")
+
+        #Calculate the start time of the errand
+        start_time=time.time()
+
+        # Pass the errand, initial time, and errand_id to the template
+        return render_template('errand_detail.html', errand=errand, execution_result=True, start_time=start_time)
+
+    # Errand might have been already executed or not found
+    return render_template('errand_details.html', errand=errand, execution_result=False)
+
+@app.route('/executed/<int:errand_id>')
+def executed(errand_id):
+    cursor=get_db().cursor()
+    cursor.execute("UPDATE errands SET status='executed' WHERE id=?",(errand_id,))
+    get_db().commit()
+    return redirect('/feed')   
+
+@app.route('/opt_out/<int:errand_id>')
+def opt_out(errand_id):
+    cursor=get_db().cursor()
+    cursor.execute("UPDATE errands SET status='pending' WHERE id=?",(errand_id,))
+    get_db().commit()
+    return redirect('/feed')  
 
 
 @app.route('/nearby_errands', methods=['POST'])

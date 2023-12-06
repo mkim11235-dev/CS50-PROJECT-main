@@ -14,7 +14,7 @@ Feed
     <!-- Errands List Container -->
     <div class="errands-container">
         {% for row in rows %}
-        <a href="{{ url_for('view_errand', errand_id=row[0]) }}" style="text-decoration: none; color: inherit;">
+        <a href="{{ url_for('errand_detail', errand_id=row[0]) }}" style="text-decoration: none; color: inherit;">
             <div class="card mb-3">
                 <div class="border border-left border-right px-0">
                     <div class="card shadow-0">
@@ -27,8 +27,13 @@ Feed
                                         <span class="small text-muted font-weight-normal">@{{ row[2] }}</span> <!-- Username -->
                                         <span class="small text-muted font-weight-normal"> • </span>
                                         <span class="small text-muted font-weight-normal">
-                                            {% if row[4] > 0 %}{{ row[4] }}d{% endif %}
-                                            {% if row[4] == 0 %}{{ row[5] }}h{% endif %}
+                                            {% if row[4] > 0 %}
+                                            {{ row[4] }}d
+                                            {% elif row[5]>0 %}
+                                            {{row[5]}}h
+                                            {% else %}
+                                            {{row[6]}}min
+                                            {% endif %}
                                             ago
                                         </span>
                                     </h6>
