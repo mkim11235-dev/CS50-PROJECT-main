@@ -60,25 +60,27 @@ def home():
     else:
         return redirect("/feed")
 
-@app.route("/feed", methods=["GET","POST"])
+@app.route("/feed", methods=["GET", "POST"])
 def feed():
-    
     # Query database for pending errands
     cursor = get_db().cursor()
     cursor.execute("""
         SELECT
-        errands.title,
-        users.username,
-        errands.content,
-        CAST((julianday('now') - julianday(errands.time)) AS INTEGER) AS days_difference,
-        CAST(((julianday('now') - julianday(errands.time)) * 24 ) AS INTEGER) % 24 AS hours_difference,
-        CAST(((julianday('now') - julianday(errands.time)) * 24 *60) % 60 AS INTEGER) AS total_minutes_difference
-    FROM errands
-    JOIN users ON errands.user_id = users.id
-    WHERE errands.status = 'pending'
-    ORDER BY errands.time DESC""");
+            errands.id,  -- Include the errand ID
+            errands.title,
+            users.username,
+            errands.content,
+            CAST((julianday('now') - julianday(errands.time)) AS INTEGER) AS days_difference,
+            CAST(((julianday('now') - julianday(errands.time)) * 24) AS INTEGER) % 24 AS hours_difference,
+            CAST(((julianday('now') - julianday(errands.time)) * 24 * 60) % 60 AS INTEGER) AS total_minutes_difference
+        FROM errands
+        JOIN users ON errands.user_id = users.id
+        WHERE errands.status = 'pending'
+        ORDER BY errands.time DESC
+    """)
     rows = cursor.fetchall()
     return render_template("feed.html", rows=rows)
+
 
 @app.route("/login", methods=["POST","GET"])
 def handle_login():
@@ -213,11 +215,11 @@ def publish():
     if request.method == "POST":
         title = request.form.get("title")
         content = request.form.get("content")
-
-        # Insert new post into the database
+        latitude = request.form.get("latitude")
+        longitude = request.form.get("longitude")
         cursor = get_db().cursor()
-        cursor.execute("INSERT INTO errands (user_id, title, content, time, status) VALUES (?, ?, ?,?,?)",
-                       (session["user_id"], title, content, julianday(), 'pending'))
+        cursor.execute("INSERT INTO errands (user_id, title, content, time, status, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                       (session["user_id"], title, content, julianday(), 'pending', latitude, longitude))
         get_db().commit()
         return redirect('/feed')
     else:
@@ -225,9 +227,33 @@ def publish():
     
 
     
-@app.route('/execute',methods=["POST","GET"])
-def execute():
-    return render_template("execute.html")
+@app.route('/errand/<int:errand_id>')
+def view_errand(errand_id):
+    # Fetch errand details from the database
+    cursor = get_db().cursor()
+    cursor.execute("""
+        SELECT e.id, e.title, e.content, u.username, e.time, e.status, e.latitude, e.longitude
+        FROM errands e
+        JOIN users u ON e.user_id = u.id
+        WHERE e.id = ?
+    """, (errand_id,))
+    errand = cursor.fetchone()
+
+    if errand:
+        # Pass the errand details to the template
+        return render_template('errand_detail.html', errand=errand)
+    else:
+        # Handle the case where errand is not found
+        return "Errand not found", 404
+    
+    
+@app.route('/execute_errand/<int:errand_id>', methods=['GET', 'POST'])
+def execute_errand(errand_id):
+    # Add your logic for executing the errand here
+    # For example, updating the errand status in the database
+
+    # Redirect to an appropriate page after execution
+    return redirect(url_for('feed'))
 
 @app.route('/profile')
 def profile():

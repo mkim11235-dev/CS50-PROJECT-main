@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+
+{% block title %}
+{{ errand[1] }} <!-- Title of the errand -->
+{% endblock %}
+
+{% block main %}
+<div class="container mt-5">
+    <h2>{{ errand[1] }}</h2> <!-- Title -->
+    <p>Published by {{ errand[3] }} - {{ errand[4] }} ago</p>
+    <p>{{ errand[2] }}</p> <!-- Description -->
+
+    <div id="map" style="height: 400px;"></div>
+
+    <!-- Execute Button -->
+    <div class="text-end mt-3">
+        <a href="{{ url_for('execute_errand', errand_id=errand[0]) }}" class="btn btn-primary">Execute</a>
+    </div>
+
+    <script>
+        function initMap() {
+            var errandLocation = {lat: {{ errand[6] }}, lng: {{ errand[7] }}};
+            var map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 15,
+                center: errandLocation
+            });
+            new google.maps.Marker({
+                position: errandLocation,
+                map: map
+            });
+        }
+    </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAChcmJ-2WVKyBH9DpOwH5PcEoFPecNrpE&callback=initMap"></script>
+</div>
+{% endblock %}
+
+
+

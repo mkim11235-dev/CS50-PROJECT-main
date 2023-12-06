@@ -6,22 +6,53 @@ Publish
 
 {% block main %}
 <div class="container mt-5">
+    <div class="publish-container">
+        <h2 class="text-center" style="color: #ff5555;">Publish a Request</h2>
 
-    <div class="section">
-        <h2>Publish a Request</h2>
-
-        <form action="/publish" method="post">
+        <form action="/publish" method="post" class="mt-4">
             <div class="mb-3">
                 <label for="title" class="form-label">Title</label>
                 <input name="title" class="form-control" type="text" required>
             </div>
             <div class="mb-3">
                 <label for="content" class="form-label">Describe your errand</label>
-                <input name="content" class="form-control" type="text" required>
+                <textarea name="content" class="form-control" required></textarea>
             </div>
-            <button class="btn btn-primary" type="submit">Publish</button>
+
+            <div id="map" style="height: 400px;"></div>
+            <input type="hidden" name="latitude" id="latitude">
+            <input type="hidden" name="longitude" id="longitude">
+
+            <button class="btn btn-red" type="submit">Publish</button>
         </form>
     </div>
 </div>
+
+<script>
+    var map;
+    function initMap() {
+        map = new google.maps.Map(document.getElementById('map'), {
+            center: {lat: -34.397, lng: 150.644},
+            zoom: 6
+        });
+
+        map.addListener('click', function(e) {
+            placeMarkerAndPanTo(e.latLng, map);
+        });
+    }
+
+    function placeMarkerAndPanTo(latLng, map) {
+        var marker = new google.maps.Marker({
+            position: latLng,
+            map: map
+        });
+        map.panTo(latLng);
+
+        document.getElementById('latitude').value = latLng.lat();
+        document.getElementById('longitude').value = latLng.lng();
+    }
+</script>
+
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAChcmJ-2WVKyBH9DpOwH5PcEoFPecNrpE&callback=initMap"></script>
 
 {% endblock %}
