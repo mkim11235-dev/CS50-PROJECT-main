@@ -22,7 +22,7 @@ class ResetPasswordForm(FlaskForm):
     password = PasswordField('New Password', validators=[InputRequired()])
     confirm = PasswordField('Repeat Password', validators=[InputRequired(), EqualTo('password')])
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static')
 app.config['SECRET_KEY'] = secrets.token_hex(32)
 
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -31,6 +31,9 @@ app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = 'runnify50@gmail.com'
 app.config['MAIL_PASSWORD'] = 'ergtfb3c4tvb587tb)()T*&FG24rtcoi4nt3i'
 app.config['MAIL_DEFAULT_SENDER'] = 'runnify50@gmail.com'
+
+app.config['UPLOAD_FOLDER'] = '/CS50-PROJECT-MAIN-2/cs50-project/profile_pics/'
+
 
 mail = Mail(app)
 
@@ -261,8 +264,9 @@ def errand_detail(errand_id):
     errand = cursor.fetchone()
 
     if errand:
-        # Pass the errand details to the template
-        return render_template('errand_detail.html', errand=errand)
+        # Pass the errand details to the template, including start_time
+        return render_template('errand_detail.html', errand=errand, start_time=None)
+
     else:
         # Handle the case where errand is not found
         return "Errand not found", 404
@@ -284,11 +288,9 @@ def execute_errand(errand_id):
     # Check if the errand is still pending 
     if errand[5]=='pending':
         # Update the status of the errand 
-        print("Before updating status")
         cursor=get_db().cursor()
         cursor.execute("UPDATE errands SET status='in progress' WHERE id=?", (errand_id,))
         get_db().commit()
-        print("After updating status")
 
         #Calculate the start time of the errand
         start_time=time.time()
@@ -297,7 +299,7 @@ def execute_errand(errand_id):
         return render_template('errand_detail.html', errand=errand, execution_result=True, start_time=start_time)
 
     # Errand might have been already executed or not found
-    return render_template('errand_details.html', errand=errand, execution_result=False)
+    return render_template('errand_detail.html', errand=errand, execution_result=False)
 
 @app.route('/executed/<int:errand_id>')
 def executed(errand_id):
@@ -359,7 +361,7 @@ def profile():
     FROM errands
     JOIN users ON errands.user_id = users.id
     WHERE users.id = ?
-    ORDER BY errands.time DESC""", (session['user_id'],))
+    ORDER BY julianday('now') - julianday(errands.time) ASC""", (session['user_id'],))
     rows = cursor.fetchall()
     cursor.close()
     
@@ -385,16 +387,18 @@ def profile_picture():
     if 'profile_picture' in request.files:
         profile_picture = request.files['profile_picture']
 
+        if profile_picture.filename != '':
         # Specify the folder where you want to save the uploaded files
-        upload_folder = 'profile_pics/'
-        filename = secure_filename(profile_picture.filename)
-        profile_picture_path = os.path.join(upload_folder, filename)
-        profile_picture.save(profile_picture_path)
+            filename = secure_filename(profile_picture.filename)
+            profile_picture_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            if not os.path.exists(app.config['UPLOAD_FOLDER']):
+                os.makedirs(app.config['UPLOAD_FOLDER'])
+            profile_picture.save(profile_picture_path)
 
-        # Update the user's profile picture in the database
-        cursor = get_db().cursor()
-        cursor.execute("UPDATE users SET profile_picture_filename = ? WHERE id = ?", (filename, session['user_id']))
-        get_db().commit()
+            # Update the user's profile picture in the database
+            cursor = get_db().cursor()
+            cursor.execute("UPDATE users SET profile_picture.filename = ? WHERE id = ?", (filename, session['user_id']))
+            get_db().commit()
 
 
         return redirect('/profile')
