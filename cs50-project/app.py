@@ -1,10 +1,11 @@
 import os
-from flask import Flask, flash, g, render_template, redirect, request, session
+from flask import Flask, flash, g, render_template, redirect, request, jsonify, session
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField
 from wtforms.validators import InputRequired, Email, EqualTo
 import secrets
+import math
 import sqlite3
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -31,6 +32,21 @@ app.config['MAIL_PASSWORD'] = 'ergtfb3c4tvb587tb)()T*&FG24rtcoi4nt3i'
 app.config['MAIL_DEFAULT_SENDER'] = 'runnify50@gmail.com'
 
 mail = Mail(app)
+
+def get_db():
+    db = sqlite3.connect('database.db')
+    db.row_factory = sqlite3.Row  # This enables column access by name: row['column_name']
+    return db
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    # Haversine formula to calculate distance between two points on the Earth
+    R = 6371  # Radius of the Earth in km
+    dLat = math.radians(lat2 - lat1)
+    dLon = math.radians(lon2 - lon1)
+    a = math.sin(dLat/2) * math.sin(dLat/2) + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dLon/2) * math.sin(dLon/2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    distance = R * c
+    return distance
 
 # Function to get a database connection
 def get_db():
@@ -254,6 +270,36 @@ def execute_errand(errand_id):
 
     # Redirect to an appropriate page after execution
     return redirect(url_for('feed'))
+
+
+@app.route('/nearby_errands', methods=['POST'])
+def nearby_errands():
+    data = request.get_json()
+    user_latitude = float(data['latitude'])
+    user_longitude = float(data['longitude'])
+
+    # Fetch all errands from the database
+    cursor = get_db().cursor()
+    cursor.execute("SELECT id, title, content, latitude, longitude FROM errands WHERE status = 'pending'")
+    all_errands = cursor.fetchall()
+
+    # Calculate distance for each errand and sort
+    sorted_errands = []
+    for errand in all_errands:
+        errand_id, title, content, latitude, longitude = errand
+        if latitude is not None and longitude is not None:
+            distance = calculate_distance(user_latitude, user_longitude, latitude, longitude)
+            sorted_errands.append({
+                'id': errand_id,
+                'title': title,
+                'content': content,
+                'distance': distance
+            })
+
+    sorted_errands.sort(key=lambda e: e['distance'])
+
+    return jsonify(sorted_errands)
+
 
 @app.route('/profile')
 def profile():

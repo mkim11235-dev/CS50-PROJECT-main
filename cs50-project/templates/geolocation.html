@@ -1,0 +1,29 @@
+<button id="nearby-errands-btn">Find Errands Near Me</button>
+
+<script>
+document.getElementById('nearby-errands-btn').addEventListener('click', function() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+
+            // Send data to server using AJAX
+            fetch('/nearby_errands', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ latitude, longitude })
+            })
+            .then(response => response.json())
+            .then(errands => {
+                // Handle the response data (display errands)
+                console.log(errands); // For demonstration purposes
+                // You can update the page to display the errands here
+            });
+        });
+    } else {
+        alert("Geolocation is not supported by this browser.");
+    }
+});
+</script>

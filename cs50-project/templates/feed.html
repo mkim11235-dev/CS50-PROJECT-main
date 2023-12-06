@@ -6,36 +6,114 @@ Feed
 
 {% block main %}
 <div class="container mx-auto mw-60">
-    {% for row in rows %}
-    <!-- Wrap each errand in a clickable link -->
-    <a href="{{ url_for('view_errand', errand_id=row[0]) }}" style="text-decoration: none; color: inherit;">
-        <div class="card mb-3">
-            <div class="border border-left border-right px-0">
-                <div class="card shadow-0">
-                    <div class="d-flex p-3 border-bottom">
-                        <img src="static/logo.jpg" class="rounded-circle" height="50" alt="Runnify Logo" loading="lazy" />
-                        <div class="d-flex w-100 ps-3">
-                            <div class="flex-grow-1">
-                                <h6 class="text-body">
-                                    {{ row[1] }} <!-- Title -->
-                                    <span class="small text-muted font-weight-normal">@{{ row[2] }}</span> <!-- Username -->
-                                    <span class="small text-muted font-weight-normal"> • </span>
-                                    <span class="small text-muted font-weight-normal">
-                                        {% if row[4] > 0 %}{{ row[4] }}d{% endif %}
-                                        {% if row[4] == 0 %}{{ row[5] }}h{% endif %}
-                                        ago
-                                    </span>
-                                </h6>
-                                <div class="text-start">
-                                    <p style="line-height: 1.2;">{{ row[3] }}</p> <!-- Content -->
+    <!-- Find Errands Near Me Button -->
+    <div class="text-center mb-4">
+        <button id="nearby-errands-btn" class="btn btn-primary">Find Errands Near Me</button>
+    </div>
+
+    <!-- Errands List Container -->
+    <div class="errands-container">
+        {% for row in rows %}
+        <a href="{{ url_for('view_errand', errand_id=row[0]) }}" style="text-decoration: none; color: inherit;">
+            <div class="card mb-3">
+                <div class="border border-left border-right px-0">
+                    <div class="card shadow-0">
+                        <div class="d-flex p-3 border-bottom">
+                            <img src="static/logo.jpg" class="rounded-circle" height="50" alt="Runnify Logo" loading="lazy" />
+                            <div class="d-flex w-100 ps-3">
+                                <div class="flex-grow-1">
+                                    <h6 class="text-body">
+                                        {{ row[1] }} <!-- Title -->
+                                        <span class="small text-muted font-weight-normal">@{{ row[2] }}</span> <!-- Username -->
+                                        <span class="small text-muted font-weight-normal"> • </span>
+                                        <span class="small text-muted font-weight-normal">
+                                            {% if row[4] > 0 %}{{ row[4] }}d{% endif %}
+                                            {% if row[4] == 0 %}{{ row[5] }}h{% endif %}
+                                            ago
+                                        </span>
+                                    </h6>
+                                    <div class="text-start">
+                                        <p style="line-height: 1.2;">{{ row[3] }}</p> <!-- Content -->
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </a>
-    {% endfor %}
+        </a>
+        {% endfor %}
+    </div>
 </div>
+
+<script>
+document.getElementById('nearby-errands-btn').addEventListener('click', function() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+
+            // Send data to server using AJAX
+            fetch('/nearby_errands', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ latitude, longitude })
+            })
+            .then(response => response.json())
+            .then(errands => {
+                // Clear existing errands
+                const errandsContainer = document.querySelector('.errands-container');
+                errandsContainer.innerHTML = '';
+
+                // Add sorted errands to the page
+                errands.forEach(errand => {
+                    const errandElement = document.createElement('a');
+                    errandElement.href = `/errand/${errand.id}`;
+                    errandElement.style.textDecoration = 'none';
+                    errandElement.style.color = 'inherit';
+                    errandElement.innerHTML = `
+                        <div class="card mb-3">
+                            <div class="border border-left border-right px-0">
+                                <div class="card shadow-0">
+                                    <div class="d-flex p-3 border-bottom">
+                                        <h6>${errand.title} - ${errand.distance.toFixed(2)} km away</h6>
+                                        <p>${errand.content}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                    errandsContainer.appendChild(errandElement);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching errands:', error);
+                alert('Error fetching errands. Please try again.');
+            });
+        }, function(error) {
+            // Handle location access error
+            console.error('Error getting location:', error);
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    alert("User denied the request for Geolocation.");
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    alert("Location information is unavailable.");
+                    break;
+                case error.TIMEOUT:
+                    alert("The request to get user location timed out.");
+                    break;
+                case error.UNKNOWN_ERROR:
+                    alert("An unknown error occurred.");
+                    break;
+            }
+        });
+    } else {
+        alert("Geolocation is not supported by this browser.");
+    }
+});
+</script>
+
 {% endblock %}
+

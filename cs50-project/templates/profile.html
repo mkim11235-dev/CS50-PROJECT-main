@@ -12,7 +12,6 @@ Profile
             {% if user.profile_picture_filename %}
             <img src="{{ url_for('static', filename='profile_pics/' + user[0][2]) }}" alt="Profile Picture"
                 class="rounded-circle me-3" width="80" height="80">
-
             {% else %}
             <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Default Profile Picture"
                 class="rounded-circle me-3" width="80" height="80">
@@ -34,23 +33,20 @@ Profile
 
     <div class="container mx-auto mw-75">
         {% for row in rows %}
-        <div class="card mb-3">
-            <div class="border border-left border-right px-0">
-
-                <div>
+        <a href="{{ url_for('view_errand', errand_id=row[7]) }}" style="text-decoration: none; color: inherit;">
+            <div class="card mb-3">
+                <div class="border border-left border-right px-0">
                     <div class="card shadow-0">
                         <div class="d-flex p-3 border-bottom">
                             {% if user.profile_picture_filename %}
                             <img src="{{ url_for('static', filename='profile_pics/' + user[0][2]) }}"
                                 alt="Profile Picture" class="rounded-circle me-3" width="80" height="80">
-
                             {% else %}
                             <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Default Profile Picture"
                                 class="rounded-circle me-3" width="80" height="80">
                             {% endif %}
                             <div class="d-flex w-100 ps-3">
                                 <div class="flex-grow-1">
-
                                     <h6 class="text-body">
                                         {{row[0]}}
                                         <span class="small text-muted font-weight-normal">@{{row[1]}}</span>
@@ -58,29 +54,25 @@ Profile
                                         <span class="small text-muted font-weight-normal">
                                             {% if row[3] > 0 %}{{ row[3] }}d{% endif %}
                                             {% if row[4] > 0 %}{{ row[4] }}h{% endif %}
-                                            {{row[5]}}min
-                                            ago
+                                            {{row[5]}}min ago
                                         </span>
                                         <span class="small text-muted font-weight-normal">{{row[6]}}</span>
-                                        <span><i class="fas fa-angle-down float-end"></i></span>
                                     </h6>
                                     <div class="text-start">
                                         <p style="line-height: 1.2;">{{row[2]}}</p>
                                     </div>
                                     <form action="/delete" method="post">
                                         <input type="hidden" name="id" value="{{ row[7] }}">
-                                        <button type="submit">Delete Errand</button>
+                                        <button type="submit" class="btn btn-danger">Delete Errand</button>
                                     </form>
                                 </div>
                             </div>
                         </div>
-
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
         {% endfor %}
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 {% endblock %}
