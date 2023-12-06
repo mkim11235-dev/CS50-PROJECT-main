@@ -233,13 +233,16 @@ def publish():
         content = request.form.get("content")
         latitude = request.form.get("latitude")
         longitude = request.form.get("longitude")
+
+        # Insert new post into the database
         cursor = get_db().cursor()
-        cursor.execute("INSERT INTO errands (user_id, title, content, time, status, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                       (session["user_id"], title, content, julianday(), 'pending', latitude, longitude))
+        cursor.execute("INSERT INTO errands (user_id, title, content, time, status, latitude, longitude) VALUES (?, ?, ?, julianday(), 'pending', ?, ?)",
+                       (session["user_id"], title, content, latitude, longitude))
         get_db().commit()
         return redirect('/feed')
     else:
         return render_template("publish.html")
+
     
 
     
