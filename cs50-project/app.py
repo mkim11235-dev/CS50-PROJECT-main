@@ -1,5 +1,5 @@
 import os
-from flask import Flask, flash, g, render_template, redirect, request, jsonify, session
+from flask import Flask, flash, g, render_template, redirect, request, jsonify, session, send_from_directory
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField
@@ -12,6 +12,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
 from werkzeug.utils import secure_filename
 import time
+import pytz
 
 
 
@@ -32,10 +33,12 @@ app.config['MAIL_USERNAME'] = 'runnify50@gmail.com'
 app.config['MAIL_PASSWORD'] = 'ergtfb3c4tvb587tb)()T*&FG24rtcoi4nt3i'
 app.config['MAIL_DEFAULT_SENDER'] = 'runnify50@gmail.com'
 
-app.config['UPLOAD_FOLDER'] = '/CS50-PROJECT-MAIN-2/cs50-project/profile_pics/'
-
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'profile_pics')
+PROFILE_PICS_FOLDER = os.path.join(os.path.dirname(__file__), 'profile_pics')
 
 mail = Mail(app)
+
+
 
 def get_db():
     db = sqlite3.connect('database.db')
@@ -73,6 +76,30 @@ def julianday():
     formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
     return formatted_datetime
 
+def get_published_time(errand):
+    now = datetime.now(pytz.utc)
+    published_time_str = errand[9]  # Assuming the published time is at index 9 in the errand tuple
+
+    # Convert the string to a datetime object
+    published_time = datetime.strptime(published_time_str, '%Y-%m-%d %H:%M:%S')
+    published_time = pytz.utc.localize(published_time)
+
+    time_difference = now - published_time
+
+    days = time_difference.days
+    seconds = time_difference.seconds
+    hours, remainder = divmod(seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
+
+    if days > 0:
+        return f"{days}d"
+    elif hours > 0:
+        return f"{hours}h"
+    elif minutes > 0:
+        return f"{minutes}min"
+    else:
+        return "Just now"
+
 @app.route("/")
 def home():
     if "user_id" not in session:
@@ -92,7 +119,8 @@ def feed():
             errands.content,
             CAST((julianday('now') - julianday(errands.time)) AS INTEGER) AS days,
             CAST(((julianday('now') - julianday(errands.time)) * 24) AS INTEGER) % 24 AS hours,
-            CAST(((julianday('now') - julianday(errands.time)) * 24 * 60) % 60 AS INTEGER) AS minutes
+            CAST(((julianday('now') - julianday(errands.time)) * 24 * 60) % 60 AS INTEGER) AS minutes,
+            users.profile_picture_filename
         FROM errands
         JOIN users ON errands.user_id = users.id
         WHERE errands.status = 'pending'
@@ -100,6 +128,36 @@ def feed():
     """)
     rows = cursor.fetchall()
     return render_template("feed.html", rows=rows)
+
+@app.route("/executing", methods=["POST","GET"])
+def executing():
+    cursor = get_db().cursor()
+    cursor.execute("""
+        SELECT
+            errands.title,
+            users.username,
+            errands.content,
+            CAST((julianday('now') - julianday(errands.time)) AS INTEGER) AS days_difference,
+            CAST(((julianday('now') - julianday(errands.time)) * 24 ) AS INTEGER) % 24 AS hours_difference,
+            CAST(((julianday('now') - julianday(errands.time)) * 24 *60) % 60 AS INTEGER) AS total_minutes_difference,
+            errands.status,
+            errands.id,
+            errands.user_id               
+        FROM errands
+        JOIN users ON errands.user_id = users.id
+        WHERE errands.executer_id=? AND errands.status=?
+    """, (session['user_id'], 'in progress',))
+
+    rows = cursor.fetchall()
+    cursor.close()
+    
+    cursor = get_db().cursor()
+    cursor.execute("SELECT username , points, profile_picture_filename FROM users WHERE id=?",(session['user_id'],))
+    user = cursor.fetchone()
+
+    # user == [(user_data)] 
+    return render_template('profile.html', rows=rows, user=user)
+
 
 
 @app.route("/login", methods=["POST","GET"])
@@ -125,6 +183,7 @@ def handle_login():
 
         # Remember which user has logged in
         session["user_id"] = user[0]
+        session.permanent = True
         
         # Redirect user to home page
         return redirect("/")
@@ -199,9 +258,9 @@ def forgot_password():
 
             msg = Message('Password Reset Request', sender='your_email', recipients=[email])
             msg.body = f'''To reset your password, visit the following link:
-{url_for('reset_password', token=token, _external=True)}
-If you did not make this request, simply ignore this email and no changes will be made.
-'''
+            {url_for('reset_password', token=token, _external=True)}
+            If you did not make this request, simply ignore this email and no changes will be made.
+            '''
             mail.send(msg)
             flash('An email has been sent with instructions to reset your password.')
             return redirect(url_for('login'))
@@ -232,6 +291,10 @@ def reset_password(token):
 
 @app.route("/publish", methods=["POST", "GET"])
 def publish():
+    # Check if the user is authenticated
+    if "user_id" not in session:
+        # Redirect unauthenticated users to the login page
+        return redirect("/login")
     if request.method == "POST":
         title = request.form.get("title")
         content = request.form.get("content")
@@ -239,10 +302,14 @@ def publish():
         longitude = request.form.get("longitude")
         duration=request.form.get("duration")
 
+        # Convert duration to seconds before storing in the database
+        duration_seconds = int(duration) * 60
+        
+
         # Insert new post into the database
         cursor = get_db().cursor()
-        cursor.execute("INSERT INTO errands (user_id, title, content, time, status, latitude, longitude, to_do_time) VALUES (?, ?, ?, julianday(), 'pending', ?, ?,?)",
-                       (session["user_id"], title, content, latitude, longitude, duration*60))
+        cursor.execute("INSERT INTO errands (user_id, title, content, time, status, latitude, longitude, to_do_time) VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending', ?, ?, ?)",
+               (session["user_id"], title, content, latitude, longitude, duration_seconds))
         get_db().commit()
         return redirect('/feed')
     else:
@@ -256,7 +323,17 @@ def errand_detail(errand_id):
     # Fetch errand details from the database
     cursor = get_db().cursor()
     cursor.execute("""
-        SELECT e.id, e.title, e.content, u.username, e.time, e.status, e.latitude, e.longitude
+        SELECT 
+            e.id, 
+            e.title, 
+            e.content, 
+            u.username,  
+            e.status, 
+            e.latitude, 
+            e.longitude, 
+            e.to_do_time, 
+            e.user_id,
+            e.time
         FROM errands e
         JOIN users u ON e.user_id = u.id
         WHERE e.id = ?
@@ -264,14 +341,12 @@ def errand_detail(errand_id):
     errand = cursor.fetchone()
 
     if errand:
-        # Pass the errand details to the template, including start_time
-        return render_template('errand_detail.html', errand=errand, start_time=None)
+        # Pass the errand details to the template, including time difference
+        return render_template('errand_detail.html', errand=errand, user_id=session["user_id"], get_published_time=get_published_time)
 
     else:
         # Handle the case where errand is not found
         return "Errand not found", 404
-    
-    
 
 @app.route('/execute_errand/<int:errand_id>')
 def execute_errand(errand_id):
@@ -289,7 +364,7 @@ def execute_errand(errand_id):
     if errand[5]=='pending':
         # Update the status of the errand 
         cursor=get_db().cursor()
-        cursor.execute("UPDATE errands SET status='in progress' WHERE id=?", (errand_id,))
+        cursor.execute("UPDATE errands SET status='in progress', executer_id=? WHERE id=?", (session['user_id'],errand_id,))
         get_db().commit()
 
         #Calculate the start time of the errand
@@ -301,6 +376,7 @@ def execute_errand(errand_id):
     # Errand might have been already executed or not found
     return render_template('errand_detail.html', errand=errand, execution_result=False)
 
+# url_for()
 @app.route('/executed/<int:errand_id>')
 def executed(errand_id):
     cursor=get_db().cursor()
@@ -316,6 +392,7 @@ def opt_out(errand_id):
     return redirect('/feed')  
 
 
+
 @app.route('/nearby_errands', methods=['POST'])
 def nearby_errands():
     data = request.get_json()
@@ -324,25 +401,63 @@ def nearby_errands():
 
     # Fetch all errands from the database
     cursor = get_db().cursor()
-    cursor.execute("SELECT id, title, content, latitude, longitude FROM errands WHERE status = 'pending'")
+    cursor.execute("""
+        SELECT 
+            errands.id, 
+            errands.title, 
+            errands.content, 
+            errands.latitude, 
+            errands.longitude,
+            users.username,
+            users.profile_picture_filename,
+            CAST((julianday('now') - julianday(errands.time)) AS INTEGER) AS days_difference,
+            CAST((julianday('now') - julianday(errands.time)) AS INTEGER) % 24 AS hours_difference,
+            CAST(((julianday('now') - julianday(errands.time)) * 24 * 60) % 60 AS INTEGER) AS total_minutes_difference,
+            errands.status
+        FROM errands 
+        JOIN users ON errands.user_id = users.id
+        WHERE status = 'pending'
+    """)
+
     all_errands = cursor.fetchall()
 
     # Calculate distance for each errand and sort
     sorted_errands = []
     for errand in all_errands:
-        errand_id, title, content, latitude, longitude = errand
+        (
+            errand_id,
+            title, 
+            content, 
+            latitude, 
+            longitude, 
+            username, 
+            profile_picture_filename, 
+            days_difference, 
+            hours_difference, 
+            total_minutes_difference, 
+            status
+        ) = errand
+
         if latitude is not None and longitude is not None:
             distance = calculate_distance(user_latitude, user_longitude, latitude, longitude)
             sorted_errands.append({
                 'id': errand_id,
                 'title': title,
                 'content': content,
-                'distance': distance
+                'distance': distance,
+                'username': username,
+                'profile_picture_filename': profile_picture_filename,
+                'days_difference': days_difference,
+                'hours_difference': hours_difference,
+                'total_minutes_difference': total_minutes_difference,
+                'status': status
             })
+    
 
     sorted_errands.sort(key=lambda e: e['distance'])
 
     return jsonify(sorted_errands)
+
 
 
 @app.route('/profile')
@@ -357,7 +472,8 @@ def profile():
         CAST(((julianday('now') - julianday(errands.time)) * 24 ) AS INTEGER) % 24 AS hours_difference,
         CAST(((julianday('now') - julianday(errands.time)) * 24 *60) % 60 AS INTEGER) AS total_minutes_difference,
         errands.status,
-        errands.id               
+        errands.id,
+        errands.user_id               
     FROM errands
     JOIN users ON errands.user_id = users.id
     WHERE users.id = ?
@@ -365,10 +481,11 @@ def profile():
     rows = cursor.fetchall()
     cursor.close()
     
-    cursor=get_db().cursor()
+    cursor = get_db().cursor()
     cursor.execute("SELECT username , points, profile_picture_filename FROM users WHERE id=?",(session['user_id'],))
-    user=cursor.fetchall()
+    user = cursor.fetchone()
 
+    # user == [(user_data)] 
     return render_template('profile.html', rows=rows, user=user)
 
 @app.route('/delete', methods=['POST'])
@@ -382,6 +499,7 @@ def delete():
         cursor.close()
     return redirect('/profile')
 
+# Uploading profile picture to upload folder
 @app.route('/profile_picture', methods=['POST'])
 def profile_picture():
     if 'profile_picture' in request.files:
@@ -391,13 +509,11 @@ def profile_picture():
         # Specify the folder where you want to save the uploaded files
             filename = secure_filename(profile_picture.filename)
             profile_picture_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            if not os.path.exists(app.config['UPLOAD_FOLDER']):
-                os.makedirs(app.config['UPLOAD_FOLDER'])
             profile_picture.save(profile_picture_path)
 
             # Update the user's profile picture in the database
             cursor = get_db().cursor()
-            cursor.execute("UPDATE users SET profile_picture.filename = ? WHERE id = ?", (filename, session['user_id']))
+            cursor.execute("UPDATE users SET profile_picture_filename = ? WHERE id = ?", (filename, session['user_id']))
             get_db().commit()
 
 
@@ -405,6 +521,8 @@ def profile_picture():
 
     return 'No profile picture uploaded'
 
+# Grabbing profile picture from uploads
+@app.route('/profile_pics/<filename>')
+def fetch_profile_pic(filename):
+    return send_from_directory(PROFILE_PICS_FOLDER, filename)
 
-
-    

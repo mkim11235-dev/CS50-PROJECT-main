@@ -14,12 +14,19 @@ Feed
     <!-- Errands List Container -->
     <div class="errands-container">
         {% for row in rows %}
-        <a href="{{ url_for('errand_detail', errand_id=row[0]) }}" style="text-decoration: none; color: inherit;">
-            <div class="card mb-3">
+        <div class="card mb-3"></div>
+            <a href="{{ url_for('errand_detail', errand_id=row[0]) }}" style="text-decoration: none; color: inherit;">
+            
                 <div class="border border-left border-right px-0">
                     <div class="card shadow-0">
                         <div class="d-flex p-3 border-bottom">
-                            <img src="static/logo.jpg" class="rounded-circle" height="50" alt="Runnify Logo" loading="lazy" />
+                            {% if row[7] %}
+                            <img src="{{ url_for('fetch_profile_pic', filename=row[7]) }}" alt="Profile Picture"
+                                class="rounded-circle me-3" width="80" height="80">
+                            {% else %}
+                                <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Default Profile Picture"
+                                    class="rounded-circle me-3" width="80" height="80">
+                            {% endif %}
                             <div class="d-flex w-100 ps-3">
                                 <div class="flex-grow-1">
                                     <h6 class="text-body">
@@ -45,14 +52,17 @@ Feed
                         </div>
                     </div>
                 </div>
-            </div>
-        </a>
+        
+            </a>
+        </div>
         {% endfor %}
+        
     </div>
 </div>
 
 <script>
-document.getElementById('nearby-errands-btn').addEventListener('click', function() {
+    
+    document.getElementById('nearby-errands-btn').addEventListener('click', function() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(position) {
             const latitude = position.coords.latitude;
@@ -74,10 +84,13 @@ document.getElementById('nearby-errands-btn').addEventListener('click', function
 
                 // Add sorted errands to the page
                 errands.forEach(errand => {
+                    // Create an element for each errand and append it to the container
                     const errandElement = document.createElement('a');
-                    errandElement.href = `/errand/${errand.id}`;
-                    errandElement.style.textDecoration = 'none';
+                    errandElement.href = `/errand_detail/${errand.id}`;
+                    errandElement.style.textDecoration = 'none';  // Optional: Remove underline
                     errandElement.style.color = 'inherit';
+                    
+                    // Append the profilePicHTML to the errandElement
                     errandElement.innerHTML = `
                         <div class="card mb-3">
                             <div class="border border-left border-right px-0">
@@ -85,10 +98,14 @@ document.getElementById('nearby-errands-btn').addEventListener('click', function
                                     <div class="d-flex p-3 border-bottom">
                                         <h6>${errand.title} - ${errand.distance.toFixed(2)} km away</h6>
                                         <p>${errand.content}</p>
+                                        <!-- Add profile picture filename where you want it -->
+                                        <img src="${errand.profile_picture_filename}">
                                     </div>
                                 </div>
                             </div>
                         </div>`;
+
+                    // Append errandElement to the container
                     errandsContainer.appendChild(errandElement);
                 });
             })
@@ -118,7 +135,9 @@ document.getElementById('nearby-errands-btn').addEventListener('click', function
         alert("Geolocation is not supported by this browser.");
     }
 });
-</script>
+
+    </script>
+    
 
 {% endblock %}
 

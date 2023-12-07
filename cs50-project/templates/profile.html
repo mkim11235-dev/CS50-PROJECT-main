@@ -9,16 +9,16 @@ Profile
 <body>
     <div class="container mt-5">
         <div class="d-flex align-items-center">
-            {% if user.profile_picture_filename %}
-            <img src="{{ url_for('static', filename='profile_pics/' + user[0][2]) }}" alt="Profile Picture"
-                class="rounded-circle me-3" width="80" height="80">
+            {% if user[2] %}
+                <img src="{{ url_for('fetch_profile_pic', filename=user[2]) }}" alt="Profile Picture"
+                    class="rounded-circle me-3" width="80" height="80">
             {% else %}
-            <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Default Profile Picture"
-                class="rounded-circle me-3" width="80" height="80">
+                <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Default Profile Picture"
+                    class="rounded-circle me-3" width="80" height="80">
             {% endif %}
             <div>
-                <h1>{{ user[0][0] }}</h1>
-                <p>Points: {{ user[0][1] }}</p>
+                <h1>{{ user[0]}}</h1>
+                <p>Points: {{ user[1]}}</p>
             </div>
         </div>
 
@@ -30,7 +30,7 @@ Profile
             <button type="submit" class="btn btn-primary">Upload</button>
         </form>
     </div>
-
+    <p><a href="/executing">Click to see the errands you are executing</a></p>
     <div class="container mx-auto mw-75">
         {% for row in rows %}
         <a href="{{ url_for('errand_detail', errand_id=row[7]) }}" style="text-decoration: none; color: inherit;">
@@ -38,12 +38,27 @@ Profile
                 <div class="border border-left border-right px-0">
                     <div class="card shadow-0">
                         <div class="d-flex p-3 border-bottom">
-                            {% if user.profile_picture_filename %}
-                            <img src="{{ url_for('static', filename='profile_pics/' + user[0][2]) }}"
-                                alt="Profile Picture" class="rounded-circle me-3" width="80" height="80">
+                                                            <!-- ultimately your user struct will look like [(user data)] <- you have to actually
+                                     access the 0th index of that and then the data inside of that which is not associated with 
+                                     a specific key like if it were an object -->
+                            <!-- <div>
+                                user02 : {{user[0][2]}}
+
+                            </div>
+
+                            <div>
+                                user : {{user}}
+                            </div> -->
+                            <!-- <div>
+                                user01 :  {{user[2]}}
+                            </div> -->
+                           
+                            {% if row[8] %}                            
+                                <img src="{{ url_for('fetch_profile_pic', filename=row[8]) }}"
+                                    alt="Profile Picture" class="rounded-circle me-3" width="80" height="80">
                             {% else %}
-                            <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Default Profile Picture"
-                                class="rounded-circle me-3" width="80" height="80">
+                                <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Default Profile Picture"
+                                    class="rounded-circle me-3" width="80" height="80">
                             {% endif %}
                             <div class="d-flex w-100 ps-3">
                                 <div class="flex-grow-1">
