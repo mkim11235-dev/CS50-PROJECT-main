@@ -5,99 +5,108 @@
 {% endblock %}
 
 {% block main %}
+    <!-- Main content container -->
     <div class="container mt-5">
-        <h2>{{ errand[1] }}</h2> <!-- Title -->
-        <p>Published by {{ errand[3] }} - {{ get_published_time(errand) }} ago</p>
-        <p>{{ errand[2] }}</p> <!-- Description -->
+        <h2>{{ errand[1] }}</h2> <!-- Display the title of the errand -->
+        <p>Published by {{ errand[3] }} - {{ get_published_time(time) }} ago</p>
+        <p>{{ errand[2] }}</p> <!-- Display the description of the errand -->
 
-        <!-- ... (rest of your code) ... -->
-
+        <!-- Conditional rendering based on the user and errand status -->
         {% if errand[8] != user_id %}
-            <!-- Executed Button -->
-            <div class="text-end mt-3">
-                <a href="{{ url_for('executed', errand_id=errand[0]) }}" class="btn btn-primary" id="executed-btn" style="display: none;">Executed</a>
-            </div>
             
-            <!-- Optout button -->
-            <div class="text-end mt-3">
-                <a href="{{ url_for('opt_out', errand_id=errand[0]) }}" class="btn btn-primary" id="optout-btn" style="display: none;">Opt Out</a>
-            </div>
+            {% if errand[10] == user_id and errand[4] == 'in progress'%}
+                <!-- Optout button -->
+                <div class="text-end mt-3">
+                    <a href="{{ url_for('opt_out', errand_id=errand[0]) }}" class="btn btn-primary" id="optout-btn" style="display: inline-black;">Opt Out</a>
+                </div>
+            {% else %}
+                <!-- Execute Button -->
+                <div class="text-end mt-3">
+                    <a href="{{ url_for('execute_errand', errand_id=errand[0]) }}" class="btn btn-primary" id="execute-btn">Execute</a>
+                </div>
+            {% endif %}
 
-            <!-- Execute Button -->
-            <div class="text-end mt-3">
-                <a href="{{ url_for('execute_errand', errand_id=errand[0]) }}" class="btn btn-primary" id="execute-btn">Execute</a>
-            </div>
-
+            <!-- Conditional rendering for remaining time display -->
             {% if start_time is defined and start_time is not none %}
                 <!-- Container for time display -->
                 <div id="remaining-time-container" style="display: none;">
                     <p>Remaining Time: <span id="remaining-time"></span></p>
                 </div>
 
+                <!-- JavaScript for updating and displaying remaining time -->
                 <script>
                     window.addEventListener("DOMContentLoaded", function () {
-                        var start_time = {{ start_time|default('undefined')|tojson|safe }};
-                        var errandDuration = {{ errand[7] }};
+                        // Variables for timer logic and DOM elements
+                        var start_time = {{ start_time|default('undefined') }};
+                        var errandDuration = {{ errand[8] }};
                         var remainingTimeContainer = document.getElementById("remaining-time-container");
                         var remainingTimeElement = document.getElementById("remaining-time");
                         var executeButton = document.getElementById("execute-btn");
                         var executedButton = document.getElementById("executed-btn");
                         var optoutButton = document.getElementById("optout-btn");
-                
+                        
                         // Function to update and display remaining time
                         function updateRemainingTime() {
                             var current_time = new Date().getTime() / 1000; // Convert milliseconds to seconds
                             var elapsed_time = current_time - start_time;
                             var remaining_time = Math.max(0, errandDuration - elapsed_time);
-                
+
                             // Update remaining time display
                             remainingTimeElement.textContent = formatTime(remaining_time);
                 
-                            // If the remaining time is zero, stop the timer
+                            // If the remaining time is zero, stop the timer and redirect
                             if (remaining_time <= 0) {
                                 clearInterval(timerId);
-                
-                                // Redirect to opt_out route
                                 window.location.href = "{{ url_for('opt_out', errand_id=errand[0]) }}";
                             } else {
-                                // If the time is still remaining, show the buttons
+                                // If time is remaining, show the buttons
                                 remainingTimeContainer.style.display = "block";
                                 executeButton.style.display = "none";
-                                executedButton.style.display = "inline-block";
-                                optoutButton.style.display = "inline-block";
                             }
                         }
                 
                         // Basic timer logic
                         var timerId = setInterval(updateRemainingTime, 1000);
                 
+                        // Function to format time in minutes and seconds
                         function formatTime(seconds) {
                             var minutes = Math.floor(seconds / 60);
                             var remainingSeconds = seconds % 60;
                             return minutes + " minutes, " + remainingSeconds.toFixed(2) + " seconds";
                         }
                     });
-                </script>      
-                
+                </script>
             {% endif %}
+        {% elif errand[8] == user_id and errand[4] == 'in progress' %}
+            <!-- Executed Button -->
+            <div class="text-end mt-3">
+                <a href="{{ url_for('executed', errand_id=errand[0]) }}" class="btn btn-primary" id="executed-btn" style="display: inline-block">Executed</a>
+            </div>
         {% endif %}
 
+        <!-- Google Maps display for the errand location -->
         <div id="map" style="height: 400px;"></div>
 
+        <!-- JavaScript for initializing Google Maps with the errand location -->
         <script>
             function initMap() {
                 var errandLocation = { lat: {{ errand[5] }}, lng: {{ errand[6] }} };
 
+                // Create a map centered at the errand location
                 var map = new google.maps.Map(document.getElementById('map'), {
                     zoom: 15,
                     center: errandLocation
                 });
+
+                // Add a marker at the errand location
                 new google.maps.Marker({
                     position: errandLocation,
                     map: map
                 });
             }
         </script>
+        <!-- Asynchronously load Google Maps API with a callback to initMap -->
         <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAChcmJ-2WVKyBH9DpOwH5PcEoFPecNrpE&callback=initMap"></script>
     </div>
+    <!-- End of main content container -->
 {% endblock %}

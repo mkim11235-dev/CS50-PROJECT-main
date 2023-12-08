@@ -63,6 +63,7 @@ Feed
 <script>
     
     document.getElementById('nearby-errands-btn').addEventListener('click', function() {
+
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(position) {
             const latitude = position.coords.latitude;
@@ -92,19 +93,27 @@ Feed
                     
                     // Append the profilePicHTML to the errandElement
                     errandElement.innerHTML = `
-                        <div class="card mb-3">
-                            <div class="border border-left border-right px-0">
-                                <div class="card shadow-0">
-                                    <div class="d-flex p-3 border-bottom">
-                                        <h6>${errand.title} - ${errand.distance.toFixed(2)} km away</h6>
-                                        <p>${errand.content}</p>
-                                        <!-- Add profile picture filename where you want it -->
-                                        <img src="${errand.profile_picture_filename}">
+                    <div class="border border-left border-right px-0">
+                        <div class="card shadow-0">
+                            <div class="d-flex p-3 border-bottom">
+                                <div class="d-flex w-100 ps-3">
+                                    <div class="flex-grow-1">
+                                        <h6 class="text-body">
+                                            ${errand.title}
+                                            <span class="small text-muted font-weight-normal">@${errand.username}</span>
+                                            <span class="small text-muted font-weight-normal"> • </span>
+                                            <span class="small text-muted font-weight-normal">${errand.distance.toFixed(2)} km away</span>
+                                            <span class="small text-muted font-weight-normal"> • </span>
+                                        </h6>
+                                        <div class="text-start">
+                                            <p style="line-height: 1.2;">${errand.content}</p>
+                                        </div>
+
                                     </div>
                                 </div>
                             </div>
-                        </div>`;
-
+                        </div>
+                    </div>`;
                     // Append errandElement to the container
                     errandsContainer.appendChild(errandElement);
                 });
@@ -140,4 +149,3 @@ Feed
     
 
 {% endblock %}
-

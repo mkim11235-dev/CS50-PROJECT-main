@@ -5,24 +5,37 @@ Register
 {% endblock %}
 
 {% block main %}
+<!-- Registration form -->
 <form action="/register" method="post">
+
+    <!-- Username input field -->
     <div class="form-group">
         <input autocomplete="off" autofocus class="form-control" name="username" placeholder="Username" type="text">
     </div>
+
+    <!-- Email input field -->
     <div class="form-group">
         <input class="form-control" name="email" placeholder="Email" type="text">
     </div>
+
+    <!-- Password input field -->
     <div class="form-group">
         <input class="form-control" name="password" placeholder="Password" type="password">
     </div>
+
+    <!-- Confirm Password input field -->
     <div class="form-group">
         <input class="form-control" name="confirmation" placeholder="Confirm Password" type="password">
     </div>
+
+    <!-- Display error message if registration fails -->
     {% if error %}
     <div class="alert alert-danger" role="alert">
         {{ error }}
     </div>
     {% endif %}
+
+    <!-- Submit button for registration -->
     <button class="btn btn-primary" type="submit">Register</button>
 </form>
 {% endblock %}

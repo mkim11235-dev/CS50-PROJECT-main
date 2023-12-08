@@ -1,10 +1,12 @@
 {% extends "layout.html" %}
+
 {% block title %}
-Log In
+Log In  <!-- Sets the title of the page -->
 {% endblock %}
 
 {% block main %}
 <form action="/login" method="post">
+    <!-- User input fields for username and password -->
     <div class="mb-3">
         <input autocomplete="off" autofocus class="form-control mx-auto w-auto" id="username" name="username"
             placeholder="Username" type="text">
@@ -13,12 +15,15 @@ Log In
         <input class="form-control mx-auto w-auto" id="password" name="password" placeholder="Password" type="password">
     </div>
     {% if error %}
+    <!-- Display an error message if login fails -->
     <div class="alert alert-danger" role="alert">
         {{ error }}
     </div>
     {% endif %}
+    <!-- Button to submit the login form -->
     <button class="btn btn-primary" type="submit">Log In</button>
 </form>
+<!-- Links for user registration and password-->
 <p class="mt-3">Don't have an account? <a href="/register">Register here</a>.</p>
 <p><a href="{{ url_for('forgot_password') }}">Forgot Password?</a></p>
 {% endblock %}

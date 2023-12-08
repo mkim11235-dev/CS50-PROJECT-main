@@ -5,10 +5,11 @@ Profile
 {% endblock %}
 
 {% block main %}
-
 <body>
+    <!-- Main container with user profile information -->
     <div class="container mt-5">
         <div class="d-flex align-items-center">
+            <!-- Display user profile picture, if available, otherwise show a default picture -->
             {% if user[2] %}
                 <img src="{{ url_for('fetch_profile_pic', filename=user[2]) }}" alt="Profile Picture"
                     class="rounded-circle me-3" width="80" height="80">
@@ -17,11 +18,13 @@ Profile
                     class="rounded-circle me-3" width="80" height="80">
             {% endif %}
             <div>
+                <!-- Display user name and points -->
                 <h1>{{ user[0]}}</h1>
                 <p>Points: {{ user[1]}}</p>
             </div>
         </div>
 
+        <!-- Form to change the profile picture -->
         <form action="/profile_picture" method="post" enctype="multipart/form-data">
             <div class="mb-3">
                 <label for="profile_picture" class="form-label">Change Profile Picture</label>
@@ -30,36 +33,32 @@ Profile
             <button type="submit" class="btn btn-primary">Upload</button>
         </form>
     </div>
+
+    <!-- Link to view errands being executed -->
     <p><a href="/executing">Click to see the errands you are executing</a></p>
+
+    <!-- Container for displaying a list of errands -->
     <div class="container mx-auto mw-75">
         {% for row in rows %}
+        <!-- Link to view details of a specific errand -->
         <a href="{{ url_for('errand_detail', errand_id=row[7]) }}" style="text-decoration: none; color: inherit;">
+            <!-- Card for displaying individual errand information -->
             <div class="card mb-3">
                 <div class="border border-left border-right px-0">
                     <div class="card shadow-0">
                         <div class="d-flex p-3 border-bottom">
-                                                            <!-- ultimately your user struct will look like [(user data)] <- you have to actually
-                                     access the 0th index of that and then the data inside of that which is not associated with 
-                                     a specific key like if it were an object -->
-                            <!-- <div>
-                                user02 : {{user[0][2]}}
-
-                            </div>
-
-                            <div>
-                                user : {{user}}
-                            </div> -->
-                            <!-- <div>
-                                user01 :  {{user[2]}}
-                            </div> -->
-                           
-                            {% if row[8] %}                            
-                                <img src="{{ url_for('fetch_profile_pic', filename=row[8]) }}"
+                            <!-- Display profile picture of the user associated with the errand, or default picture -->
+                            {% if row[9] %}
+                                <img src="{{ url_for('fetch_profile_pic', filename=row[9]) }}"
+                                    alt="Profile Picture" class="rounded-circle me-3" width="80" height="80">
+                            {% elif user[2] %}
+                                <img src="{{ url_for('fetch_profile_pic', filename=user[2]) }}"
                                     alt="Profile Picture" class="rounded-circle me-3" width="80" height="80">
                             {% else %}
                                 <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Default Profile Picture"
                                     class="rounded-circle me-3" width="80" height="80">
                             {% endif %}
+                            <!-- Display errand details, including user name, timestamp, and description -->
                             <div class="d-flex w-100 ps-3">
                                 <div class="flex-grow-1">
                                     <h6 class="text-body">
@@ -73,13 +72,16 @@ Profile
                                         </span>
                                         <span class="small text-muted font-weight-normal">{{row[6]}}</span>
                                     </h6>
+                                    <!-- Display errand description and form to delete the errand -->
                                     <div class="text-start">
                                         <p style="line-height: 1.2;">{{row[2]}}</p>
                                     </div>
-                                    <form action="/delete" method="post">
-                                        <input type="hidden" name="id" value="{{ row[7] }}">
-                                        <button type="submit" class="btn btn-danger">Delete Errand</button>
-                                    </form>
+                                    {% if row[8] == user_id %}
+                                        <form action="/delete" method="post">
+                                            <input type="hidden" name="id" value="{{ row[7] }}">
+                                            <button type="submit" class="btn btn-danger">Delete Errand</button>
+                                        </form>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>

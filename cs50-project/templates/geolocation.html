@@ -1,13 +1,17 @@
+<!-- Find Errands Near Me Button -->
 <button id="nearby-errands-btn">Find Errands Near Me</button>
 
 <script>
+// Event listener for the "Find Errands Near Me" button
 document.getElementById('nearby-errands-btn').addEventListener('click', function() {
+    // Check if geolocation is supported by the browser
     if (navigator.geolocation) {
+        // Get the current user's location
         navigator.geolocation.getCurrentPosition(function(position) {
             const latitude = position.coords.latitude;
             const longitude = position.coords.longitude;
 
-            // Send data to server using AJAX
+            // Send data to the server using AJAX
             fetch('/nearby_errands', {
                 method: 'POST',
                 headers: {

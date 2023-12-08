@@ -5,59 +5,86 @@ Publish
 {% endblock %}
 
 {% block main %}
+<!-- Main container for publishing a request -->
 <div class="container mt-5">
+    <!-- Display error message, if any -->
+    {% if error_message %}
+        <div class="alert alert-danger" role="alert">
+            {{ error_message }}
+        </div>
+    {% endif %}
+
+    <!-- Header for the publish form -->
     <h2>Publish a Request</h2>
+
+    <!-- Form for publishing a request -->
     <form action="/publish" method="post" id="publish-form">
+        <!-- Title input field -->
         <div class="mb-3">
             <label for="title" class="form-label">Title</label>
             <input name="title" class="form-control" type="text" required>
         </div>
+
+        <!-- Content textarea for describing the errand -->
         <div class="mb-3">
             <label for="content" class="form-label">Describe your errand</label>
             <textarea name="content" class="form-control" required></textarea>
         </div>
+
+        <!-- Duration input field -->
         <div class="mb-3">
             <label for="duration" class="form-label">Duration (minutes)</label>
             <input name="duration" class="form-control" type="number" required>
         </div>
+
+        <!-- Location input field with map -->
         <div class="mb-3">
             <label for="location" class="form-label">Location</label>
             <div id="map" style="height: 400px;"></div>
-            <button type="button" id="use-current-location" class="btn btn-secondary mt-2">Use My Current
-                Location</button>
+
+            <!-- Button to use the current location -->
+            <button type="button" id="use-current-location" class="btn btn-secondary mt-2">Use My Current Location</button>
         </div>
+
+        <!-- Hidden input fields for latitude and longitude -->
         <input type="hidden" name="latitude" id="latitude">
         <input type="hidden" name="longitude" id="longitude">
+
+        <!-- Button to submit the form -->
         <button class="btn btn-primary" type="submit">Publish</button>
     </form>
 </div>
 
+<!-- JavaScript code for Google Maps integration -->
 <script>
-    let map, marker;
-
     // Initialize and add the map
     function initMap() {
+        // Set default map center and zoom level
         map = new google.maps.Map(document.getElementById("map"), {
             zoom: 4,
             center: { lat: -25.344, lng: 131.036 }, // Default center
         });
 
+        // Initialize marker with default position
         marker = new google.maps.Marker({
             position: { lat: -25.344, lng: 131.036 },
             map: map,
             draggable: true
         });
 
+        // Update latitude and longitude when marker is dragged
         google.maps.event.addListener(marker, 'dragend', function () {
             document.getElementById('latitude').value = marker.getPosition().lat();
             document.getElementById('longitude').value = marker.getPosition().lng();
         });
     }
 
-    // Use current location
+    // Use current location button functionality
     document.getElementById('use-current-location').addEventListener('click', function () {
         if (navigator.geolocation) {
+            // Get current position using Geolocation API
             navigator.geolocation.getCurrentPosition(function (position) {
+                // Update map and marker with current location
                 const userLocation = {
                     lat: position.coords.latitude,
                     lng: position.coords.longitude
@@ -67,13 +94,16 @@ Publish
                 document.getElementById('latitude').value = userLocation.lat;
                 document.getElementById('longitude').value = userLocation.lng;
             }, function (error) {
+                // Handle error if geolocation fails
                 alert('Error occurred. Error code: ' + error.code);
             });
         } else {
+            // Display alert if geolocation is not supported
             alert('Geolocation is not supported by this browser.');
         }
     });
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAChcmJ-2WVKyBH9DpOwH5PcEoFPecNrpE&callback=initMap" async
-    defer></script>
+
+<!-- Include the Google Maps API script with the provided API key -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAChcmJ-2WVKyBH9DpOwH5PcEoFPecNrpE&callback=initMap" async defer></script>
 {% endblock %}
